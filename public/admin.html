@@ -4,7 +4,7 @@
 <h1 class="noprint">⚙️ ניהול הבחירות</h1>
 <section id="login" class="card center noprint"><p>קוד מנהל:</p><input id="ac" class="big" type="password"><br><br><button id="enter">כניסה</button><p class="err" id="le"></p></section>
 <section id="app" hidden>
- <div class="tabs center noprint"><button data-t="res">📊 תוצאות</button><button data-t="codes">🔗 קישורים וקודי מורה</button><button data-t="cands">👥 מועמדים</button><button data-t="set">🔧 הגדרות</button><button class="sec" id="refresh">רענון</button></div>
+ <div class="tabs center noprint"><button data-t="res">📊 תוצאות</button><button data-t="codes">🔗 קישורים לכיתות</button><button data-t="cands">👥 מועמדים</button><button data-t="set">🔧 הגדרות</button><button class="sec" id="refresh">רענון</button></div>
  <p class="err center noprint" id="ae"></p>
  <div id="t-res" class="card tab"></div>
  <div id="t-codes" class="card tab" hidden></div>
@@ -32,10 +32,10 @@ function draw(){const C=ST.config,cls=Object.keys(C.classes);
   for(const c of [...cs].sort((a,b)=>(ST.tally[b.id]||0)-(ST.tally[a.id]||0)))h+='<tr><td style="width:35%">'+esc(c.name)+' '+(c.g==='m'?'👦':c.g==='f'?'👧':'')+'</td><td style="width:8%"><b>'+(ST.tally[c.id]||0)+'</b></td><td><div class="bar" style="width:'+(100*(ST.tally[c.id]||0)/max)+'%"></div></td></tr>';
   h+='</table>'}
  $('t-res').innerHTML=h+'<p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת תוצאות</button></p>';
- // class links + PINs
+ // class links
  const base=location.origin+'/?k=';
- h='<h2>קישור וקוד מורה לכל כיתה</h2><p class="noprint">שולחים לכל מחנך/ת את הקישור ואת קוד המורה של הכיתה. המורה מקליד/ה את הקוד פעם אחת במחשב הכיתה, ואחרי כל תלמיד/ה לוחץ/ת "תלמיד הבא" ומקליד/ה שוב את הקוד.</p><p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת הטבלה</button> <button class="sec" onclick="copyAll()">📋 העתקת הכול</button></p><table><tr><th>כיתה</th><th>קישור</th><th>קוד מורה</th><th>הצביעו</th><th class="noprint"></th></tr>';
- for(const k of cls){const p=ST.pins[k];if(!p)continue;const url=base+p.token;h+='<tr><td><b>'+esc(k)+'</b></td><td style="direction:ltr;text-align:left;font-size:.85rem">'+esc(url)+'</td><td><b style="font-size:1.2rem">'+esc(p.pin)+'</b></td><td>'+(ST.voted[k]||0)+'</td><td class="noprint"><button class="sec" onclick="cp(\''+k+'\')">📋 העתקה</button> <button class="sec" onclick="regen(\''+k+'\')">🔄 קוד חדש</button></td></tr>'}
+ h='<h2>קישור לכל כיתה</h2><p class="noprint">שולחים לכל מחנך/ת את הקישור של הכיתה בלבד (לא בקבוצות של תלמידים). הקישור נפתח ישר להצבעה, ואחרי כל תלמיד/ה המורה לוחץ/ת "תלמיד הבא".</p><p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת הטבלה</button> <button class="sec" onclick="copyAll()">📋 העתקת הכול</button></p><table><tr><th>כיתה</th><th>קישור</th><th>הצביעו</th><th class="noprint"></th></tr>';
+ for(const k of cls){const p=ST.pins[k];if(!p)continue;const url=base+p.token;h+='<tr><td><b>'+esc(k)+'</b></td><td style="direction:ltr;text-align:left;font-size:.85rem">'+esc(url)+'</td><td>'+(ST.voted[k]||0)+'</td><td class="noprint"><button class="sec" onclick="cp(\''+k+'\')">📋 העתקה</button></td></tr>'}
  $('t-codes').innerHTML=h+'</table>';
  // candidates
  h='<h2>מועמדים</h2><p>חשוב: במצב "מועמד + מועמדת" צריך לסמן לכל ילד/ה בן או בת. כיתה עם סימון חסר תעבור אוטומטית ל"בדיוק שניים".</p>';
@@ -51,9 +51,8 @@ function rm(k,i){ST.config.classes[k].splice(i,1);draw()}
 function add(k){const n=prompt('שם המועמד/ת');if(n){ST.config.classes[k].push({name:n,g:''});draw()}}
 async function saveCfg(){try{await api({action:'saveConfig',config:ST.config});await load();alert('נשמר')}catch(e){alert(e.message)}}
 function C2(){ST.config.mode=$('mode').value;ST.config.open=$('open').checked;saveCfg()}
-function line(k){const p=ST.pins[k];return 'כיתה '+k+': '+location.origin+'/?k='+p.token+'  קוד מורה: '+p.pin}
+function line(k){const p=ST.pins[k];return 'כיתה '+k+': '+location.origin+'/?k='+p.token}
 function cp(k){navigator.clipboard.writeText(line(k)).then(()=>alert('הועתק'))}
 function copyAll(){navigator.clipboard.writeText(Object.keys(ST.config.classes).filter(k=>ST.pins[k]).map(line).join('\n')).then(()=>alert('הועתק'))}
-async function regen(k){if(!confirm('ליצור קוד מורה חדש לכיתה '+k+'? הקוד הישן יפסיק לעבוד והמחשב בכיתה יצטרך את הקוד החדש.'))return;try{await api({action:'regenPin',cls:k});await load()}catch(e){alert(e.message)}}
 async function resetAll(){const c=prompt('כדי למחוק את כל ההצבעות כתבו: אפס');if(!c)return;try{await api({action:'resetAll',confirm:c});await load()}catch(e){alert(e.message)}}
 </script></body></html>

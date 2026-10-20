@@ -1,14 +1,14 @@
-import { readJSON, writeJSON, remove, getConfig, body, validatePicks, classByToken, sessionFor, safeEq } from '../lib/store.js';
+import { readJSON, writeJSON, remove, getConfig, body, validatePicks, classByToken } from '../lib/store.js';
 import { head } from '@vercel/blob';
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).end();
   const b = body(req);
   const c = await classByToken(String(b.token || ''));
-  if (!c || !b.session || !safeEq(b.session, sessionFor(c.cls, c.pin))) return res.status(401).json({ error: 'אין הרשאה. המורה צריך להיכנס עם הקוד.' });
+  if (!c) return res.status(404).json({ error: 'הקישור לא תקין.' });
   const t = String(b.ticket || '').replace(/[^A-Za-z0-9_-]/g, '');
   const tk = t && await readJSON(`tickets/${t}.json`);
-  if (!tk || tk.cls !== c.cls) return res.status(423).json({ error: 'המסך נעול. המורה צריך ללחוץ "תלמיד הבא".' });
+  if (!tk || tk.cls !== c.cls) return res.status(423).json({ error: 'צריך ללחוץ "תלמיד הבא" כדי לפתוח פתק חדש.' });
   const cfg = await getConfig();
   if (!cfg.open) return res.status(403).json({ error: 'ההצבעה סגורה כרגע.' });
   const err = validatePicks(cfg, c.cls, b.picks);

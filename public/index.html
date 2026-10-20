@@ -2,11 +2,7 @@
 <meta name="robots" content="noindex,nofollow"><title>בחירות למועצת התלמידים</title><link rel="stylesheet" href="style.css"></head><body>
 <main>
 <h1>🗳️ בחירות למועצת התלמידים</h1>
-<section id="s-pin" class="card center" hidden>
- <p style="font-size:1.3rem" id="pinMsg">כניסת מורה: הקלידו את קוד המורה של הכיתה</p>
- <input id="pin" class="big" type="password" inputmode="numeric" maxlength="8" autocomplete="off"><br><br>
- <button id="pinGo">אישור</button><p class="err" id="e0"></p>
-</section>
+<section id="s-load" class="card center"><p style="font-size:1.3rem" id="e0">טוען…</p></section>
 <section id="s-bad" class="card center" hidden><p style="font-size:1.3rem">יש להיכנס דרך הקישור של הכיתה שקיבלתם.</p></section>
 <section id="s-vote" class="card" hidden>
  <h2 class="center" id="clsTitle"></h2>
@@ -20,23 +16,18 @@
  <button id="yes">כן, לשלוח</button> <button class="sec" id="back">חזרה</button><p class="err" id="e3"></p>
 </section>
 <section id="s-lock" class="card center" hidden>
- <div style="font-size:4rem">🎉🔒</div><h2 id="lockMsg">תודה! ההצבעה נקלטה.</h2><p>קוראים למורה. המורה לוחץ/ת "תלמיד הבא".</p>
+ <div style="font-size:4rem">🎉🔒</div><h2 id="lockMsg">תודה! ההצבעה נקלטה.</h2><p>קוראים למורה. המורה לוחץ/ת "תלמיד הבא" לתלמיד/ה הבא/ה.</p>
  <button id="nextBtn">תלמיד הבא ←</button>
 </section>
 </main>
 <footer>נוצר ע״י מאור מתתיהו · בעזרת Kita</footer>
 <script>
 const $=id=>document.getElementById(id);const TOKEN=new URLSearchParams(location.search).get('k')||'';
-const SK='kita-el-'+TOKEN;let S={},mode='open';
-function show(id){for(const s of['s-pin','s-bad','s-vote','s-confirm','s-lock'])$(s).hidden=s!==id}
+const SK='kita-el-'+TOKEN;let S={};
+function show(id){for(const s of['s-load','s-bad','s-vote','s-confirm','s-lock'])$(s).hidden=s!==id}
 async function api(p,b){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,...b})});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
-function askPin(m,msg){mode=m;$('pin').value='';$('e0').textContent='';$('pinMsg').textContent=msg;show('s-pin');$('pin').focus()}
-$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')$('pinGo').click()});
-$('pinGo').onclick=async()=>{const pin=$('pin').value;$('e0').textContent='';try{
-  if(mode==='open'){const j=await api('class',{action:'open',pin});Object.assign(S,j);localStorage[SK]=j.session}
-  const t=await api('class',{action:'next',pin});S.ticket=t.ticket;S.picks=[];sessionStorage[SK+'-t']=t.ticket;render();show('s-vote')
- }catch(e){$('e0').textContent=e.message}};
-$('nextBtn').onclick=()=>askPin('next','המורה: הקלידו את קוד המורה כדי לפתוח לתלמיד הבא');
+async function next(){$('nextBtn').disabled=true;try{const t=await api('class',{action:'next'});S.ticket=t.ticket;S.picks=[];sessionStorage[SK+'-t']=t.ticket;render();show('s-vote')}catch(e){$('e0').textContent=e.message;show('s-load')}finally{$('nextBtn').disabled=false}}
+$('nextBtn').onclick=next;
 function render(){
  $('clsTitle').textContent='כיתה '+S.cls;const n=Math.min(2,S.candidates.length);
  $('hint').textContent=S.rule==='boygirl'?'בחרו מועמד אחד ומועמדת אחת':S.rule==='upto2'?'בחרו מועמד אחד או שניים':(n===2?'בחרו שני מועמדים':'בחרו מועמד אחד');
@@ -51,10 +42,9 @@ function toggle(c){let p=S.picks;if(p.includes(c.id))p=p.filter(x=>x!==c.id);els
 function ready(){const n=Math.min(2,S.candidates.length),k=S.picks.length;if(!n)return false;if(S.rule==='boygirl')return k===2;if(S.rule==='upto2')return k>=1&&k<=2;return k===n}
 $('send').onclick=()=>{$('chosen').textContent=S.picks.map(id=>S.candidates.find(c=>c.id===id).name).join(' ו־');$('e3').textContent='';show('s-confirm')};
 $('back').onclick=()=>show('s-vote');
-$('yes').onclick=async()=>{$('yes').disabled=true;try{await api('vote',{session:S.session,ticket:S.ticket,picks:S.picks});lock()}catch(e){$('e3').textContent=e.message}finally{$('yes').disabled=false}};
+$('yes').onclick=async()=>{$('yes').disabled=true;try{await api('vote',{ticket:S.ticket,picks:S.picks});lock()}catch(e){$('e3').textContent=e.message}finally{$('yes').disabled=false}};
 function lock(){S.ticket=null;S.picks=[];delete sessionStorage[SK+'-t'];$('groups').innerHTML='';show('s-lock')}
-(async()=>{if(!TOKEN)return show('s-bad');const s=localStorage[SK];
- if(s){try{const j=await api('class',{action:'open',session:s});Object.assign(S,j);
-   const t=sessionStorage[SK+'-t'];if(t){S.ticket=t;S.picks=[];render();show('s-vote')}else show('s-lock');return}catch(e){delete localStorage[SK]}}
- askPin('open','כניסת מורה: הקלידו את קוד המורה של הכיתה')})();
+(async()=>{if(!TOKEN)return show('s-bad');
+ try{const j=await api('class',{action:'open'});Object.assign(S,j)}catch(e){$('e0').textContent=e.message;return show('s-load')}
+ const t=sessionStorage[SK+'-t'];if(t){S.ticket=t;S.picks=[];render();show('s-vote')}else next()})();
 </script></body></html>

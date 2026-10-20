@@ -1,4 +1,4 @@
-import { readJSON, writeJSON, listAll, remove, getConfig, body, isAdmin, ruleFor, getPins, newPin } from '../lib/store.js';
+import { readJSON, writeJSON, listAll, remove, getConfig, body, isAdmin, ruleFor, getPins } from '../lib/store.js';
 import crypto from 'node:crypto';
 const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function mkCode() { let s = ''; const b = crypto.randomBytes(6); for (const x of b) s += ALPH[x % ALPH.length]; return s; }
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     case 'state': {
       const votes = await listAll('votes/');
       const voteRecs = await readMany(votes);
-      const pins = await getPins(cfg);
+      const pins = Object.fromEntries(Object.entries(await getPins(cfg)).map(([k, v]) => [k, { token: v.token }]));
       const tally = {};
       for (const [, v] of voteRecs) if (v) for (const id of v.picks) tally[id] = (tally[id] || 0) + 1;
       const perClass = {};
@@ -32,11 +32,6 @@ export default async function handler(req, res) {
       const next = { mode: ['boygirl', 'exact2', 'upto2'].includes(n.mode) ? n.mode : 'boygirl', open: n.open !== false, title: String(n.title || cfg.title).slice(0, 80), classes };
       await writeJSON('config.json', next);
       return res.json({ ok: true });
-    }
-    case 'regenPin': {
-      const cls = String(b.cls || ''); const pins = await getPins(cfg);
-      if (!pins[cls]) return res.status(400).json({ error: 'כיתה לא קיימת' });
-      pins[cls].pin = newPin(); await writeJSON('pins.json', pins); return res.json({ ok: true });
     }
     case 'deleteVotes': {
       const ids = (b.ids || []).map(x => String(x).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
