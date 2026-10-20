@@ -2,51 +2,59 @@
 <meta name="robots" content="noindex,nofollow"><title>בחירות למועצת התלמידים</title><link rel="stylesheet" href="style.css"></head><body>
 <main>
 <h1>🗳️ בחירות למועצת התלמידים</h1>
-<section id="s-code" class="card center">
- <p style="font-size:1.4rem">שלום! הקלידו את קוד ההצבעה שקיבלתם מהמורה</p>
- <input id="code" class="big" maxlength="8" autocomplete="off" placeholder="ABC123"><br><br>
- <button id="go">המשך ←</button>
- <p class="err" id="e1"></p>
+<section id="s-pin" class="card center" hidden>
+ <p style="font-size:1.3rem" id="pinMsg">כניסת מורה: הקלידו את קוד המורה של הכיתה</p>
+ <input id="pin" class="big" type="password" inputmode="numeric" maxlength="8" autocomplete="off"><br><br>
+ <button id="pinGo">אישור</button><p class="err" id="e0"></p>
 </section>
+<section id="s-bad" class="card center" hidden><p style="font-size:1.3rem">יש להיכנס דרך הקישור של הכיתה שקיבלתם.</p></section>
 <section id="s-vote" class="card" hidden>
  <h2 class="center" id="clsTitle"></h2>
  <p class="hint" id="hint"></p>
  <div class="groups" id="groups"></div>
  <p class="err center" id="e2"></p>
- <div class="center"><button id="send" disabled>שליחת ההצבעה ✉️</button> <button class="sec" id="cancel">ביטול</button></div>
+ <div class="center"><button id="send" disabled>שליחת ההצבעה ✉️</button></div>
 </section>
 <section id="s-confirm" class="card center" hidden>
  <h2>בטוחים?</h2><p style="font-size:1.4rem" id="chosen"></p><p>אחרי השליחה אי אפשר לשנות.</p>
  <button id="yes">כן, לשלוח</button> <button class="sec" id="back">חזרה</button><p class="err" id="e3"></p>
 </section>
-<section id="s-done" class="card center" hidden>
- <div style="font-size:5rem">🎉</div><h2>תודה! ההצבעה נקלטה.</h2><p>אפשר לקרוא לתלמיד הבא.</p>
+<section id="s-lock" class="card center" hidden>
+ <div style="font-size:4rem">🎉🔒</div><h2 id="lockMsg">תודה! ההצבעה נקלטה.</h2><p>קוראים למורה. המורה לוחץ/ת "תלמיד הבא".</p>
+ <button id="nextBtn">תלמיד הבא ←</button>
 </section>
 </main>
 <footer>נוצר ע״י מאור מתתיהו · בעזרת Kita</footer>
 <script>
-const $=id=>document.getElementById(id);let S={};
-function show(id){for(const s of['s-code','s-vote','s-confirm','s-done'])$(s).hidden=s!==id}
-async function api(p,b){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
-function reset(){S={};$('code').value='';$('e1').textContent='';show('s-code');$('code').focus()}
-$('code').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
-$('go').onclick=async()=>{$('e1').textContent='';try{const j=await api('code',{code:$('code').value});S={...j,code:$('code').value,picks:[]};render();show('s-vote')}catch(e){$('e1').textContent=e.message}};
+const $=id=>document.getElementById(id);const TOKEN=new URLSearchParams(location.search).get('k')||'';
+const SK='kita-el-'+TOKEN;let S={},mode='open';
+function show(id){for(const s of['s-pin','s-bad','s-vote','s-confirm','s-lock'])$(s).hidden=s!==id}
+async function api(p,b){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,...b})});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
+function askPin(m,msg){mode=m;$('pin').value='';$('e0').textContent='';$('pinMsg').textContent=msg;show('s-pin');$('pin').focus()}
+$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')$('pinGo').click()});
+$('pinGo').onclick=async()=>{const pin=$('pin').value;$('e0').textContent='';try{
+  if(mode==='open'){const j=await api('class',{action:'open',pin});Object.assign(S,j);localStorage[SK]=j.session}
+  const t=await api('class',{action:'next',pin});S.ticket=t.ticket;S.picks=[];sessionStorage[SK+'-t']=t.ticket;render();show('s-vote')
+ }catch(e){$('e0').textContent=e.message}};
+$('nextBtn').onclick=()=>askPin('next','המורה: הקלידו את קוד המורה כדי לפתוח לתלמיד הבא');
 function render(){
- $('clsTitle').textContent='כיתה '+S.cls;
- const n=Math.min(2,S.candidates.length);
+ $('clsTitle').textContent='כיתה '+S.cls;const n=Math.min(2,S.candidates.length);
  $('hint').textContent=S.rule==='boygirl'?'בחרו מועמד אחד ומועמדת אחת':S.rule==='upto2'?'בחרו מועמד אחד או שניים':(n===2?'בחרו שני מועמדים':'בחרו מועמד אחד');
- let groups=S.rule==='boygirl'?[['m','מועמדים 👦'],['f','מועמדות 👧']]:[['x','המועמדים והמועמדות']];
+ const groups=S.rule==='boygirl'?[['m','מועמדים 👦'],['f','מועמדות 👧']]:[['x','המועמדים והמועמדות']];
  $('groups').innerHTML='';
  for(const[g,t]of groups){const d=document.createElement('div');d.className='group g-'+g;d.innerHTML='<h2>'+t+'</h2>';
   for(const c of S.candidates.filter(c=>g==='x'||c.g===g)){const b=document.createElement('button');b.className='cand'+(S.picks.includes(c.id)?' sel':'');b.textContent=c.name;b.onclick=()=>toggle(c);d.appendChild(b)}
   $('groups').appendChild(d)}
- $('send').disabled=!ready();
-}
+ if(!S.candidates.length)$('groups').innerHTML='<p class="center">עדיין אין מועמדים בכיתה הזאת.</p>';
+ $('send').disabled=!ready()}
 function toggle(c){let p=S.picks;if(p.includes(c.id))p=p.filter(x=>x!==c.id);else if(S.rule==='boygirl'){p=p.filter(id=>S.candidates.find(x=>x.id===id).g!==c.g);p.push(c.id)}else{if(p.length>=2)p.shift();p.push(c.id)}S.picks=p;render()}
-function ready(){const n=Math.min(2,S.candidates.length),k=S.picks.length;if(S.rule==='boygirl')return k===2;if(S.rule==='upto2')return k>=1&&k<=2;return k===n}
-$('cancel').onclick=reset;
+function ready(){const n=Math.min(2,S.candidates.length),k=S.picks.length;if(!n)return false;if(S.rule==='boygirl')return k===2;if(S.rule==='upto2')return k>=1&&k<=2;return k===n}
 $('send').onclick=()=>{$('chosen').textContent=S.picks.map(id=>S.candidates.find(c=>c.id===id).name).join(' ו־');$('e3').textContent='';show('s-confirm')};
 $('back').onclick=()=>show('s-vote');
-$('yes').onclick=async()=>{$('yes').disabled=true;try{await api('vote',{code:S.code,picks:S.picks});show('s-done');setTimeout(reset,5000)}catch(e){$('e3').textContent=e.message}finally{$('yes').disabled=false}};
-reset();
+$('yes').onclick=async()=>{$('yes').disabled=true;try{await api('vote',{session:S.session,ticket:S.ticket,picks:S.picks});lock()}catch(e){$('e3').textContent=e.message}finally{$('yes').disabled=false}};
+function lock(){S.ticket=null;S.picks=[];delete sessionStorage[SK+'-t'];$('groups').innerHTML='';show('s-lock')}
+(async()=>{if(!TOKEN)return show('s-bad');const s=localStorage[SK];
+ if(s){try{const j=await api('class',{action:'open',session:s});Object.assign(S,j);
+   const t=sessionStorage[SK+'-t'];if(t){S.ticket=t;S.picks=[];render();show('s-vote')}else show('s-lock');return}catch(e){delete localStorage[SK]}}
+ askPin('open','כניסת מורה: הקלידו את קוד המורה של הכיתה')})();
 </script></body></html>

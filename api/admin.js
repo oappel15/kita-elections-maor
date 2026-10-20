@@ -1,4 +1,4 @@
-import { readJSON, writeJSON, listAll, remove, getConfig, body, isAdmin, ruleFor } from '../lib/store.js';
+import { readJSON, writeJSON, listAll, remove, getConfig, body, isAdmin, ruleFor, getPins, newPin } from '../lib/store.js';
 import crypto from 'node:crypto';
 const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function mkCode() { let s = ''; const b = crypto.randomBytes(6); for (const x of b) s += ALPH[x % ALPH.length]; return s; }
@@ -15,16 +15,15 @@ export default async function handler(req, res) {
   const cfg = await getConfig();
   switch (b.action) {
     case 'state': {
-      const [codes, votes] = await Promise.all([listAll('codes/'), listAll('votes/')]);
-      const used = new Set(votes.map(v => fname(v.pathname)));
-      const codeRecs = await readMany(codes);
+      const votes = await listAll('votes/');
       const voteRecs = await readMany(votes);
+      const pins = await getPins(cfg);
       const tally = {};
       for (const [, v] of voteRecs) if (v) for (const id of v.picks) tally[id] = (tally[id] || 0) + 1;
       const perClass = {};
-      for (const [c, r] of codeRecs) if (r) (perClass[r.cls] ||= []).push({ code: c, used: used.has(c) });
+      for (const [, v] of voteRecs) if (v) perClass[v.cls] = (perClass[v.cls] || 0) + 1;
       const rules = Object.fromEntries(Object.keys(cfg.classes).map(k => [k, ruleFor(cfg, k)]));
-      return res.json({ config: cfg, rules, codes: perClass, tally, votes: voteRecs.length });
+      return res.json({ config: cfg, rules, voted: perClass, pins, tally, votes: voteRecs.length });
     }
     case 'saveConfig': {
       const n = b.config || {};
@@ -34,24 +33,14 @@ export default async function handler(req, res) {
       await writeJSON('config.json', next);
       return res.json({ ok: true });
     }
-    case 'genCodes': {
-      const cls = String(b.cls || ''); const count = Math.max(1, Math.min(60, parseInt(b.count) || 0));
-      if (!(cls in cfg.classes)) return res.status(400).json({ error: 'כיתה לא קיימת' });
-      const made = [];
-      for (let i = 0; i < count; i++) { const c = mkCode(); await writeJSON(`codes/${c}.json`, { cls, created: new Date().toISOString() }, false); made.push(c); }
-      return res.json({ ok: true, codes: made });
-    }
-    case 'deleteUnused': {
-      const cls = String(b.cls || '');
-      const [codes, votes] = await Promise.all([listAll('codes/'), listAll('votes/')]);
-      const used = new Set(votes.map(v => fname(v.pathname)));
-      const recs = await readMany(codes);
-      const kill = codes.filter((x, i) => recs[i][1] && recs[i][1].cls === cls && !used.has(fname(x.pathname))).map(x => x.url);
-      await remove(kill); return res.json({ ok: true, deleted: kill.length });
+    case 'regenPin': {
+      const cls = String(b.cls || ''); const pins = await getPins(cfg);
+      if (!pins[cls]) return res.status(400).json({ error: 'כיתה לא קיימת' });
+      pins[cls].pin = newPin(); await writeJSON('pins.json', pins); return res.json({ ok: true });
     }
     case 'resetAll': {
       if (b.confirm !== 'אפס') return res.status(400).json({ error: 'צריך לכתוב אפס לאישור' });
-      const all = [...await listAll('codes/'), ...await listAll('votes/')];
+      const all = [...await listAll('codes/'), ...await listAll('votes/'), ...await listAll('tickets/')];
       await remove(all.map(x => x.url)); return res.json({ ok: true, deleted: all.length });
     }
   }
