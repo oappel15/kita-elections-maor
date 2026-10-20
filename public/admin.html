@@ -35,7 +35,7 @@ function draw(){const C=ST.config,cls=Object.keys(C.classes);
  $('t-res').innerHTML=h+'<p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת תוצאות</button></p>';
  // class links
  const base=location.origin+'/?k=';
- h='<h2>קישור לכל כיתה</h2><p class="noprint">שולחים לכל מחנך/ת את הקישור של הכיתה בלבד (לא בקבוצות של תלמידים). הקישור נפתח ישר להצבעה, ואחרי כל תלמיד/ה המורה לוחץ/ת "תלמיד הבא".</p><p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת הטבלה</button> <button class="sec" onclick="copyAll()">📋 העתקת הכול</button></p><table><tr><th>כיתה</th><th>קישור</th><th>הצביעו</th><th class="noprint"></th></tr>';
+ h='<h2>קישור לכל כיתה</h2><p class="noprint">שולחים לכל מחנך/ת את הקישור של הכיתה בלבד (לא בקבוצות של תלמידים). הקישור נפתח ישר להצבעה, ואחרי כל תלמיד/ה המורה לוחץ/ת "תלמיד הבא".</p><p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת הטבלה</button> <button class="sec" onclick="copyAll()">📋 העתקת הכול</button> <button class="sec" onclick="xlsx()">⬇️ ייצוא לאקסל</button></p><table><tr><th>כיתה</th><th>קישור</th><th>הצביעו</th><th class="noprint"></th></tr>';
  for(const k of cls){const p=ST.pins[k];if(!p)continue;const url=base+p.token;h+='<tr><td><b>'+esc(k)+'</b></td><td style="direction:ltr;text-align:left;font-size:.85rem">'+esc(url)+'</td><td>'+(ST.voted[k]||0)+'</td><td class="noprint"><button class="sec" onclick="cp(\''+k+'\')">📋 העתקה</button></td></tr>'}
  $('t-codes').innerHTML=h+'</table>';
  // vote log (time + class only, no choices)
@@ -66,5 +66,10 @@ function C2(){ST.config.mode=$('mode').value;ST.config.open=$('open').checked;sa
 function line(k){const p=ST.pins[k];return 'כיתה '+k+': '+location.origin+'/?k='+p.token}
 function cp(k){navigator.clipboard.writeText(line(k)).then(()=>alert('הועתק'))}
 function copyAll(){navigator.clipboard.writeText(Object.keys(ST.config.classes).filter(k=>ST.pins[k]).map(line).join('\n')).then(()=>alert('הועתק'))}
+function linkRows(){return Object.keys(ST.config.classes).filter(k=>ST.pins[k]).map(k=>[k,location.origin+'/?k='+ST.pins[k].token])}
+function loadX(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function xlsx(){const rows=[['כיתה','קישור'],...linkRows()];
+ try{await loadX();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:10},{wch:60}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'קישורים');wb.Workbook={Views:[{RTL:true}]};XLSX.writeFile(wb,'קישורים-לכיתות.xlsx')}
+ catch(e){const csv='\ufeff'+rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='קישורים-לכיתות.csv';a.click()}}
 async function resetAll(){const c=prompt('כדי למחוק את כל ההצבעות כתבו: אפס');if(!c)return;try{await api({action:'resetAll',confirm:c});await load()}catch(e){alert(e.message)}}
 </script></body></html>
