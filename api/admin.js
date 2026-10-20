@@ -40,7 +40,10 @@ export default async function handler(req, res) {
     }
     case 'deleteVotes': {
       const ids = (b.ids || []).map(x => String(x).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
-      const v = (await listAll('votes/')).filter(x => ids.includes(fname(x.pathname)));
+      let v = await listAll('votes/');
+      if (b.since) v = v.filter(x => new Date(x.uploadedAt) >= new Date(b.since) && (!b.cls || true));
+      else v = v.filter(x => ids.includes(fname(x.pathname)));
+      if (b.cls) { const recs = await readMany(v); v = v.filter((x, i) => recs[i][1] && recs[i][1].cls === b.cls); }
       await remove(v.map(x => x.url)); return res.json({ ok: true, deleted: v.length });
     }
     case 'resetAll': {
