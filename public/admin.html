@@ -1,0 +1,57 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>ניהול הבחירות</title><link rel="stylesheet" href="style.css"></head><body>
+<main>
+<h1 class="noprint">⚙️ ניהול הבחירות</h1>
+<section id="login" class="card center noprint"><p>קוד מנהל:</p><input id="ac" class="big" type="password"><br><br><button id="enter">כניסה</button><p class="err" id="le"></p></section>
+<section id="app" hidden>
+ <div class="tabs center noprint"><button data-t="res">📊 תוצאות</button><button data-t="codes">🎟️ קודים להצבעה</button><button data-t="cands">👥 מועמדים</button><button data-t="set">🔧 הגדרות</button><button class="sec" id="refresh">רענון</button></div>
+ <p class="err center noprint" id="ae"></p>
+ <div id="t-res" class="card tab"></div>
+ <div id="t-codes" class="card tab" hidden></div>
+ <div id="t-cands" class="card tab noprint" hidden></div>
+ <div id="t-set" class="card tab noprint" hidden></div>
+</section>
+</main>
+<footer>נוצר ע״י מאור מתתיהו · בעזרת Kita</footer>
+<script>
+const $=id=>document.getElementById(id);let AC=sessionStorage.ac||'',ST=null,PRINT=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(b){const r=await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...b,adminCode:AC})});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
+async function load(){ST=await api({action:'state'});draw()}
+$('enter').onclick=async()=>{AC=$('ac').value;try{await load();sessionStorage.ac=AC;$('login').hidden=true;$('app').hidden=false}catch(e){$('le').textContent=e.message}};
+if(AC){$('ac').value=AC;$('enter').click()}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(t=>t.hidden=t.id!=='t-'+b.dataset.t)});
+$('refresh').onclick=()=>load().catch(e=>$('ae').textContent=e.message);
+const RULE={boygirl:'מועמד + מועמדת',exact2:'בדיוק שניים',upto2:'עד שניים'};
+function draw(){const C=ST.config,cls=Object.keys(C.classes);
+ // results
+ let h='<h2>תוצאות</h2><p>סה״כ הצבעות: <b>'+ST.votes+'</b> · ההצבעה '+(C.open?'<b style="color:green">פתוחה</b>':'<b style="color:#c00">סגורה</b>')+'</p>';
+ for(const k of cls){const cs=C.classes[k];if(!cs.length)continue;const codes=ST.codes[k]||[];const used=codes.filter(c=>c.used).length;
+  h+='<h3>כיתה '+esc(k)+' <small>('+used+' הצביעו מתוך '+codes.length+' קודים · '+RULE[ST.rules[k]]+')</small></h3><table>';
+  const max=Math.max(1,...cs.map(c=>ST.tally[c.id]||0));
+  for(const c of [...cs].sort((a,b)=>(ST.tally[b.id]||0)-(ST.tally[a.id]||0)))h+='<tr><td style="width:35%">'+esc(c.name)+' '+(c.g==='m'?'👦':c.g==='f'?'👧':'')+'</td><td style="width:8%"><b>'+(ST.tally[c.id]||0)+'</b></td><td><div class="bar" style="width:'+(100*(ST.tally[c.id]||0)/max)+'%"></div></td></tr>';
+  h+='</table>'}
+ $('t-res').innerHTML=h+'<p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת תוצאות</button></p>';
+ // codes
+ h='<div class="noprint"><h2>קודים חד־פעמיים</h2><p>כל תלמיד מקבל פתק עם קוד אחד. הקוד עובד פעם אחת בלבד ושייך לכיתה שלו.</p><table><tr><th>כיתה</th><th>קודים</th><th>נוצלו</th><th>יצירת קודים חדשים</th><th></th></tr>';
+ for(const k of cls){const codes=ST.codes[k]||[];h+='<tr><td>'+esc(k)+'</td><td>'+codes.length+'</td><td>'+codes.filter(c=>c.used).length+'</td><td><input type="number" min="1" max="60" value="30" id="n-'+esc(k)+'" style="width:70px"> <button onclick="gen(\''+k+'\')">צור</button></td><td><button class="sec" onclick="slips(\''+k+'\')">🖨️ פתקים</button> <button class="sec" onclick="delUnused(\''+k+'\')">מחיקת קודים שלא נוצלו</button></td></tr>'}
+ h+='</table></div><div id="slipArea"></div>';$('t-codes').innerHTML=h;if(PRINT)slips(PRINT);
+ // candidates
+ h='<h2>מועמדים</h2><p>חשוב: במצב "מועמד + מועמדת" צריך לסמן לכל ילד/ה בן או בת. כיתה עם סימון חסר תעבור אוטומטית ל"בדיוק שניים".</p>';
+ for(const k of cls){const miss=C.classes[k].filter(c=>!c.g).length;h+='<h3>כיתה '+esc(k)+(miss?' <small style="color:#c00">('+miss+' בלי סימון)</small>':'')+'</h3><table>';
+  C.classes[k].forEach((c,i)=>{h+='<tr><td><input value="'+esc(c.name)+'" onchange="ed(\''+k+'\','+i+',\'name\',this.value)"></td><td><select onchange="ed(\''+k+'\','+i+',\'g\',this.value)"><option value="">?</option><option value="m"'+(c.g==='m'?' selected':'')+'>בן</option><option value="f"'+(c.g==='f'?' selected':'')+'>בת</option></select></td><td><button class="sec" onclick="rm(\''+k+'\','+i+')">הסרה</button></td></tr>'});
+  h+='<tr><td colspan="3"><button class="sec" onclick="add(\''+k+'\')">+ הוספת מועמד/ת</button></td></tr></table>'}
+ h+='<p><button onclick="saveCfg()">💾 שמירת שינויים</button></p>';$('t-cands').innerHTML=h;
+ // settings
+ $('t-set').innerHTML='<h2>הגדרות</h2><p>כלל הבחירה: <select id="mode">'+Object.entries(RULE).map(([v,t])=>'<option value="'+v+'"'+(C.mode===v?' selected':'')+'>'+t+'</option>').join('')+'</select></p><p><label><input type="checkbox" id="open"'+(C.open?' checked':'')+'> ההצבעה פתוחה</label></p><p><button onclick="C2()">💾 שמירה</button></p><hr><p>איפוס מלא (מחיקת כל הקודים וכל ההצבעות): <button class="danger" onclick="resetAll()">איפוס</button></p>';
+}
+function ed(k,i,f,v){ST.config.classes[k][i][f]=v}
+function rm(k,i){ST.config.classes[k].splice(i,1);draw()}
+function add(k){const n=prompt('שם המועמד/ת');if(n){ST.config.classes[k].push({name:n,g:''});draw()}}
+async function saveCfg(){try{await api({action:'saveConfig',config:ST.config});await load();alert('נשמר')}catch(e){alert(e.message)}}
+function C2(){ST.config.mode=$('mode').value;ST.config.open=$('open').checked;saveCfg()}
+async function gen(k){try{await api({action:'genCodes',cls:k,count:$('n-'+k).value});PRINT=k;await load()}catch(e){alert(e.message)}}
+async function delUnused(k){if(!confirm('למחוק את כל הקודים שלא נוצלו בכיתה '+k+'?'))return;try{await api({action:'deleteUnused',cls:k});await load()}catch(e){alert(e.message)}}
+async function resetAll(){const c=prompt('כדי למחוק את כל הקודים וההצבעות כתבו: אפס');if(!c)return;try{await api({action:'resetAll',confirm:c});await load()}catch(e){alert(e.message)}}
+function slips(k){PRINT=k;const cs=(ST.codes[k]||[]).filter(c=>!c.used);$('slipArea').innerHTML='<h2>פתקי הצבעה, כיתה '+esc(k)+' ('+cs.length+' קודים שלא נוצלו)</h2><p class="noprint"><button onclick="print()">🖨️ הדפסה</button></p><div class="slips">'+cs.map(c=>'<div class="slip">🗳️ כיתה '+esc(k)+'<b>'+c.code+'</b>קוד חד־פעמי</div>').join('')+'</div>'}
+</script></body></html>

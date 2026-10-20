@@ -1,0 +1,21 @@
+*{box-sizing:border-box}body{margin:0;font-family:"Rubik","Assistant",Arial,sans-serif;background:linear-gradient(160deg,#fff7e0,#e3f2ff);color:#1d2b4f;min-height:100vh;display:flex;flex-direction:column}
+main{flex:1;max-width:1000px;width:100%;margin:0 auto;padding:24px 16px}
+h1{text-align:center;font-size:2.2rem;margin:.3em 0}h2{margin:.4em 0}
+.card{background:#fff;border-radius:22px;box-shadow:0 6px 24px #0001;padding:24px;margin:16px 0}
+.center{text-align:center}
+input,select,button{font:inherit}
+input.big{font-size:2rem;letter-spacing:.2em;text-align:center;padding:12px;border:3px solid #9ab;border-radius:16px;width:min(340px,90%);text-transform:uppercase;direction:ltr}
+button{cursor:pointer;border:0;border-radius:14px;padding:12px 26px;font-size:1.2rem;background:#3366ff;color:#fff;font-weight:700}
+button.sec{background:#e8ecf5;color:#1d2b4f}button.danger{background:#d33}button:disabled{opacity:.4;cursor:default}
+.err{color:#c00;font-weight:700;min-height:1.4em}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.group h2{text-align:center;border-radius:14px;padding:8px}
+.g-m h2{background:#dbe9ff}.g-f h2{background:#ffe0ef}.g-x h2{background:#eee}
+.cand{display:block;width:100%;margin:8px 0;padding:14px;font-size:1.35rem;background:#f6f8fc;color:#1d2b4f;border:3px solid transparent;border-radius:16px;font-weight:600}
+.cand.sel{border-color:#22aa55;background:#e4f8ea}.cand.sel::before{content:"✔ ";color:#22aa55}
+.hint{text-align:center;font-size:1.2rem}
+footer{text-align:center;padding:14px;color:#556;font-size:.95rem}
+table{border-collapse:collapse;width:100%}td,th{padding:6px;border-bottom:1px solid #eee;text-align:right}
+.tabs button{margin:4px}.bar{background:#3366ff;height:14px;border-radius:7px}
+.slips{display:grid;grid-template-columns:repeat(4,1fr);gap:0}.slip{border:1px dashed #888;padding:14px 6px;text-align:center}.slip b{font-size:1.5rem;letter-spacing:.15em;direction:ltr;display:block}
+@media print{.noprint,footer{display:none!important}body{background:#fff}.card{box-shadow:none;padding:0}}

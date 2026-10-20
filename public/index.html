@@ -1,0 +1,52 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>בחירות למועצת התלמידים</title><link rel="stylesheet" href="style.css"></head><body>
+<main>
+<h1>🗳️ בחירות למועצת התלמידים</h1>
+<section id="s-code" class="card center">
+ <p style="font-size:1.4rem">שלום! הקלידו את קוד ההצבעה שקיבלתם מהמורה</p>
+ <input id="code" class="big" maxlength="8" autocomplete="off" placeholder="ABC123"><br><br>
+ <button id="go">המשך ←</button>
+ <p class="err" id="e1"></p>
+</section>
+<section id="s-vote" class="card" hidden>
+ <h2 class="center" id="clsTitle"></h2>
+ <p class="hint" id="hint"></p>
+ <div class="groups" id="groups"></div>
+ <p class="err center" id="e2"></p>
+ <div class="center"><button id="send" disabled>שליחת ההצבעה ✉️</button> <button class="sec" id="cancel">ביטול</button></div>
+</section>
+<section id="s-confirm" class="card center" hidden>
+ <h2>בטוחים?</h2><p style="font-size:1.4rem" id="chosen"></p><p>אחרי השליחה אי אפשר לשנות.</p>
+ <button id="yes">כן, לשלוח</button> <button class="sec" id="back">חזרה</button><p class="err" id="e3"></p>
+</section>
+<section id="s-done" class="card center" hidden>
+ <div style="font-size:5rem">🎉</div><h2>תודה! ההצבעה נקלטה.</h2><p>אפשר לקרוא לתלמיד הבא.</p>
+</section>
+</main>
+<footer>נוצר ע״י מאור מתתיהו · בעזרת Kita</footer>
+<script>
+const $=id=>document.getElementById(id);let S={};
+function show(id){for(const s of['s-code','s-vote','s-confirm','s-done'])$(s).hidden=s!==id}
+async function api(p,b){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
+function reset(){S={};$('code').value='';$('e1').textContent='';show('s-code');$('code').focus()}
+$('code').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
+$('go').onclick=async()=>{$('e1').textContent='';try{const j=await api('code',{code:$('code').value});S={...j,code:$('code').value,picks:[]};render();show('s-vote')}catch(e){$('e1').textContent=e.message}};
+function render(){
+ $('clsTitle').textContent='כיתה '+S.cls;
+ const n=Math.min(2,S.candidates.length);
+ $('hint').textContent=S.rule==='boygirl'?'בחרו מועמד אחד ומועמדת אחת':S.rule==='upto2'?'בחרו מועמד אחד או שניים':(n===2?'בחרו שני מועמדים':'בחרו מועמד אחד');
+ let groups=S.rule==='boygirl'?[['m','מועמדים 👦'],['f','מועמדות 👧']]:[['x','המועמדים והמועמדות']];
+ $('groups').innerHTML='';
+ for(const[g,t]of groups){const d=document.createElement('div');d.className='group g-'+g;d.innerHTML='<h2>'+t+'</h2>';
+  for(const c of S.candidates.filter(c=>g==='x'||c.g===g)){const b=document.createElement('button');b.className='cand'+(S.picks.includes(c.id)?' sel':'');b.textContent=c.name;b.onclick=()=>toggle(c);d.appendChild(b)}
+  $('groups').appendChild(d)}
+ $('send').disabled=!ready();
+}
+function toggle(c){let p=S.picks;if(p.includes(c.id))p=p.filter(x=>x!==c.id);else if(S.rule==='boygirl'){p=p.filter(id=>S.candidates.find(x=>x.id===id).g!==c.g);p.push(c.id)}else{if(p.length>=2)p.shift();p.push(c.id)}S.picks=p;render()}
+function ready(){const n=Math.min(2,S.candidates.length),k=S.picks.length;if(S.rule==='boygirl')return k===2;if(S.rule==='upto2')return k>=1&&k<=2;return k===n}
+$('cancel').onclick=reset;
+$('send').onclick=()=>{$('chosen').textContent=S.picks.map(id=>S.candidates.find(c=>c.id===id).name).join(' ו־');$('e3').textContent='';show('s-confirm')};
+$('back').onclick=()=>show('s-vote');
+$('yes').onclick=async()=>{$('yes').disabled=true;try{await api('vote',{code:S.code,picks:S.picks});show('s-done');setTimeout(reset,5000)}catch(e){$('e3').textContent=e.message}finally{$('yes').disabled=false}};
+reset();
+</script></body></html>
