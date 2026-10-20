@@ -23,7 +23,8 @@ export default async function handler(req, res) {
       const perClass = {};
       for (const [, v] of voteRecs) if (v) perClass[v.cls] = (perClass[v.cls] || 0) + 1;
       const rules = Object.fromEntries(Object.keys(cfg.classes).map(k => [k, ruleFor(cfg, k)]));
-      return res.json({ config: cfg, rules, voted: perClass, pins, tally, votes: voteRecs.length });
+      const log = voteRecs.filter(([, v]) => v).map(([id, v]) => ({ id, cls: v.cls, at: v.at })).sort((a, b) => (a.at < b.at ? 1 : -1));
+      return res.json({ config: cfg, rules, voted: perClass, pins, tally, votes: voteRecs.length, log });
     }
     case 'saveConfig': {
       const n = b.config || {};

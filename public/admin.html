@@ -4,10 +4,11 @@
 <h1 class="noprint">⚙️ ניהול הבחירות</h1>
 <section id="login" class="card center noprint"><p>קוד מנהל:</p><input id="ac" class="big" type="password"><br><br><button id="enter">כניסה</button><p class="err" id="le"></p></section>
 <section id="app" hidden>
- <div class="tabs center noprint"><button data-t="res">📊 תוצאות</button><button data-t="codes">🔗 קישורים לכיתות</button><button data-t="cands">👥 מועמדים</button><button data-t="set">🔧 הגדרות</button><button class="sec" id="refresh">רענון</button></div>
+ <div class="tabs center noprint"><button data-t="res">📊 תוצאות</button><button data-t="codes">🔗 קישורים לכיתות</button><button data-t="log">🕒 יומן הצבעות</button><button data-t="cands">👥 מועמדים</button><button data-t="set">🔧 הגדרות</button><button class="sec" id="refresh">רענון</button></div>
  <p class="err center noprint" id="ae"></p>
  <div id="t-res" class="card tab"></div>
  <div id="t-codes" class="card tab" hidden></div>
+ <div id="t-log" class="card tab" hidden></div>
  <div id="t-cands" class="card tab noprint" hidden></div>
  <div id="t-set" class="card tab noprint" hidden></div>
 </section>
@@ -37,6 +38,17 @@ function draw(){const C=ST.config,cls=Object.keys(C.classes);
  h='<h2>קישור לכל כיתה</h2><p class="noprint">שולחים לכל מחנך/ת את הקישור של הכיתה בלבד (לא בקבוצות של תלמידים). הקישור נפתח ישר להצבעה, ואחרי כל תלמיד/ה המורה לוחץ/ת "תלמיד הבא".</p><p class="noprint"><button class="sec" onclick="print()">🖨️ הדפסת הטבלה</button> <button class="sec" onclick="copyAll()">📋 העתקת הכול</button></p><table><tr><th>כיתה</th><th>קישור</th><th>הצביעו</th><th class="noprint"></th></tr>';
  for(const k of cls){const p=ST.pins[k];if(!p)continue;const url=base+p.token;h+='<tr><td><b>'+esc(k)+'</b></td><td style="direction:ltr;text-align:left;font-size:.85rem">'+esc(url)+'</td><td>'+(ST.voted[k]||0)+'</td><td class="noprint"><button class="sec" onclick="cp(\''+k+'\')">📋 העתקה</button></td></tr>'}
  $('t-codes').innerHTML=h+'</table>';
+ // vote log (time + class only, no choices)
+ const T=x=>new Date(x).toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ const D=x=>new Date(x).toLocaleDateString('he-IL',{timeZone:'Asia/Jerusalem',day:'2-digit',month:'2-digit'});
+ h='<h2>יומן הצבעות</h2><p>שעת כל הצבעה (שעון ישראל), מהחדשה לישנה. בלי פירוט בחירות, כדי לשמור על חשאיות. <span style="background:#ffe08a;padding:0 .3em">מסומן בצהוב</span> = הצבעה שנקלטה עד 10 שניות אחרי ההצבעה הקודמת באותה כיתה (ייתכן כפילות).</p>';
+ const L=ST.log||[];let any=false;
+ for(const k of cls){const rows=L.filter(x=>x.cls===k);if(!rows.length)continue;any=true;const n=rows.length;let sus=0;
+  let r='';rows.forEach((x,i)=>{const prev=rows[i+1];const gap=prev?(new Date(x.at)-new Date(prev.at))/1000:null;const dup=gap!==null&&gap<=10;if(dup)sus++;
+   r+='<tr'+(dup?' style="background:#ffe08a"':'')+'><td>'+(n-i)+'/'+n+'</td><td>'+D(x.at)+'</td><td style="direction:ltr;text-align:right"><b>'+T(x.at)+'</b></td><td>'+(gap===null?'':(gap<60?Math.round(gap)+' שנ׳ אחרי הקודמת':''))+(dup?' ⚠️ ייתכן כפילות':'')+'</td></tr>'});
+  h+='<h3>כיתה '+esc(k)+' <small>('+n+' הצבעות'+(sus?' · <span style="color:#c00">'+sus+' חשודות</span>':'')+')</small></h3><table><tr><th>#</th><th>תאריך</th><th>שעה</th><th></th></tr>'+r+'</table>'}
+ if(!any)h+='<p>עדיין אין הצבעות.</p>';
+ $('t-log').innerHTML=h;
  // candidates
  h='<h2>מועמדים</h2><p>חשוב: במצב "מועמד + מועמדת" צריך לסמן לכל ילד/ה בן או בת. כיתה עם סימון חסר תעבור אוטומטית ל"בדיוק שניים".</p>';
  for(const k of cls){const miss=C.classes[k].filter(c=>!c.g).length;h+='<h3>כיתה '+esc(k)+(miss?' <small style="color:#c00">('+miss+' בלי סימון)</small>':'')+'</h3><table>';
