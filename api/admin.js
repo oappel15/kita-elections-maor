@@ -38,6 +38,11 @@ export default async function handler(req, res) {
       if (!pins[cls]) return res.status(400).json({ error: 'כיתה לא קיימת' });
       pins[cls].pin = newPin(); await writeJSON('pins.json', pins); return res.json({ ok: true });
     }
+    case 'deleteVotes': {
+      const ids = (b.ids || []).map(x => String(x).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
+      const v = (await listAll('votes/')).filter(x => ids.includes(fname(x.pathname)));
+      await remove(v.map(x => x.url)); return res.json({ ok: true, deleted: v.length });
+    }
     case 'resetAll': {
       if (b.confirm !== 'אפס') return res.status(400).json({ error: 'צריך לכתוב אפס לאישור' });
       const all = [...await listAll('codes/'), ...await listAll('votes/'), ...await listAll('tickets/')];
