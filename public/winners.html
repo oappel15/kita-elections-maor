@@ -28,8 +28,8 @@ async function load(){
     else for(const g of c.groups){
       if(g.label) h+='<div class="muted">'+g.label+':</div>';
       if(!g.list.length){h+='<p class="muted">אין קולות</p>';continue;}
-      if(g.tie) h+='<div class="tie">⚖️ תיקו! '+g.list.length+' מועמדים עם אותו מספר קולות על המקום האחרון</div>';
-      h+=g.list.map(x=>'<div class="w">'+(g.tie?'⚖️ ':'🏆 ')+esc(x.name)+' <small>('+x.n+' קולות)</small></div>').join('');
+      if(g.tie) h+='<div class="tie">⚖️ תיקו! '+g.list.filter(x=>x.n===Math.min(...g.list.map(y=>y.n))).length+' מועמדים עם אותו מספר קולות על המקום האחרון, צריך להכריע</div>';
+      const cut=Math.min(...g.list.map(x=>x.n));h+=g.list.map(x=>'<div class="w">'+(g.tie&&x.n===cut?'⚖️ ':'🏆 ')+esc(x.name)+' <small>('+x.n+' קולות)</small></div>').join('');
     }
     return h+'</div>';}).join('');
 }
