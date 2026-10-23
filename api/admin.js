@@ -30,6 +30,19 @@ export default async function handler(req, res) {
       const log = V.map(v => ({ id: v.id, cls: v.cls, at: new Date(v.at).toISOString() })).sort((a, b) => (a.at < b.at ? 1 : -1));
       return res.json({ config: cfg, rules, voted: perClass, pins, tally, votes: V.length, log });
     }
+    case 'winners': {
+      const V = await allVotes();
+      const tally = {}, perClass = {};
+      for (const v of V) { for (const id of v.picks || []) tally[id] = (tally[id] || 0) + 1; perClass[v.cls] = (perClass[v.cls] || 0) + 1; }
+      // top-n with ties: everyone whose count >= the n-th highest count (and > 0)
+      const top = (arr, n) => { const s = arr.map(c => ({ name: c.name, g: c.g, n: tally[c.id] || 0 })).filter(x => x.n > 0).sort((a, b) => b.n - a.n); if (!s.length) return { list: [], tie: false }; const cut = s[Math.min(n, s.length) - 1].n; const list = s.filter(x => x.n >= cut); return { list, tie: list.length > n }; };
+      const out = Object.keys(cfg.classes).map(k => {
+        const cands = cfg.classes[k] || [], rule = ruleFor(cfg, k);
+        const groups = rule === 'boygirl' ? [{ label: 'מועמד', ...top(cands.filter(c => c.g === 'm'), 1) }, { label: 'מועמדת', ...top(cands.filter(c => c.g === 'f'), 1) }] : [{ label: '', ...top(cands, Math.min(2, cands.length)) }];
+        return { cls: k, rule, votes: perClass[k] || 0, candidates: cands.length, groups };
+      });
+      return res.json({ title: cfg.title, open: cfg.open, classes: out });
+    }
     case 'saveConfig': {
       const n = b.config || {};
       const classes = {};

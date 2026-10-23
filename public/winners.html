@@ -1,0 +1,41 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>הזוכים לפי כיתות</title><link rel="stylesheet" href="style.css">
+<style>.wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.wc{border:2px solid #e3e8f3;border-radius:18px;padding:12px 16px}.wc h2{margin:0 0 6px;text-align:center}.w{font-size:1.25rem;font-weight:700;margin:4px 0}.w small{font-weight:400;color:#556}.tie{background:#fff3c4;border-radius:10px;padding:6px 8px;font-weight:700;color:#8a5a00;margin:6px 0}.muted{color:#778}</style></head><body>
+<main>
+<h1>🏆 הזוכים לפי כיתות</h1>
+<section id="login" class="card center noprint"><p>קוד מנהל:</p><input id="ac" class="big" type="password"><br><br><button id="enter">כניסה</button><p class="err" id="le"></p></section>
+<section id="app" hidden>
+ <p class="center noprint"><button class="sec" id="refresh">רענון</button> <button class="sec" onclick="print()">🖨️ הדפסה</button> <a href="admin.html">לדף הניהול</a></p>
+ <p class="center muted" id="meta"></p>
+ <div id="out" class="wg"></div>
+</section>
+</main>
+<script>
+let AC=sessionStorage.ac||'';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RN={boygirl:'מועמד + מועמדת',exact2:'שני המועמדים עם הכי הרבה קולות',upto2:'שני המועמדים עם הכי הרבה קולות'};
+async function load(){
+  const r=await fetch('/api/admin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({adminCode:AC,action:'winners'})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){$('le').textContent=d.error||'שגיאה';$('login').hidden=false;$('app').hidden=true;return;}
+  sessionStorage.ac=AC;$('login').hidden=true;$('app').hidden=false;
+  $('meta').textContent='ההצבעה כרגע '+(d.open?'פתוחה':'סגורה')+' · עודכן '+new Date().toLocaleTimeString('he-IL');
+  $('out').innerHTML=d.classes.map(c=>{
+    let h='<div class="wc"><h2>'+esc(c.cls)+'</h2><div class="muted center">'+c.votes+' הצבעות · כלל: '+RN[c.rule]+'</div>';
+    if(!c.candidates) h+='<p class="muted center">אין מועמדים בכיתה</p>';
+    else if(!c.votes) h+='<p class="muted center">עדיין אין הצבעות</p>';
+    else for(const g of c.groups){
+      if(g.label) h+='<div class="muted">'+g.label+':</div>';
+      if(!g.list.length){h+='<p class="muted">אין קולות</p>';continue;}
+      if(g.tie) h+='<div class="tie">⚖️ תיקו! '+g.list.length+' מועמדים עם אותו מספר קולות על המקום האחרון</div>';
+      h+=g.list.map(x=>'<div class="w">'+(g.tie?'⚖️ ':'🏆 ')+esc(x.name)+' <small>('+x.n+' קולות)</small></div>').join('');
+    }
+    return h+'</div>';}).join('');
+}
+$('enter').onclick=()=>{AC=$('ac').value.trim();$('le').textContent='';load();};
+$('ac').onkeydown=e=>{if(e.key==='Enter')$('enter').click();};
+$('refresh').onclick=load;
+if(AC)load();
+</script>
+</body></html>
