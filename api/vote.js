@@ -1,3 +1,4 @@
+import { list } from '@vercel/blob';
 import { writeJSON, getConfig, body, validatePicks, classByToken, checkBallot, votePath } from '../lib/store.js';
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -13,6 +14,14 @@ export default async function handler(req, res) {
   if (err) return res.status(400).json({ error: err });
   // one blob per ballot nonce; the Blob store refuses a second write to the same name
   try { await writeJSON(votePath(nonce, { c: c.cls, p: b.picks }), 1, false); }
-  catch { return res.status(409).json({ error: 'ההצבעה הזאת כבר נקלטה. המורה צריך ללחוץ "תלמיד הבא".' }); }
+  catch (e) {
+    // a real duplicate = a vote blob for this ballot nonce already exists
+    let dup = false;
+    try { const r = await list({ prefix: 'v/' + nonce + '~', limit: 1 }); dup = r.blobs.length > 0; }
+    catch (e2) { console.error('vote dup-check failed', e2 && e2.name, e2 && e2.message); }
+    if (dup) return res.status(409).json({ error: 'ההצבעה הזאת כבר נקלטה. המורה צריך ללחוץ "תלמיד הבא".' });
+    console.error('vote save failed', c.cls, e && e.name, e && e.message);
+    return res.status(503).json({ error: 'ההצבעה לא נשמרה, נסו שוב בעוד רגע (לחצו שוב על "כן").', retry: true });
+  }
   res.json({ ok: true });
 }

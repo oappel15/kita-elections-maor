@@ -25,7 +25,7 @@
 const $=id=>document.getElementById(id);const TOKEN=new URLSearchParams(location.search).get('k')||'';
 const SK='kita-el-'+TOKEN;let S={};
 function show(id){for(const s of['s-load','s-bad','s-vote','s-confirm','s-lock'])$(s).hidden=s!==id}
-async function api(p,b){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,...b})});const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
+async function api(p,b){let r;try{r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,...b})})}catch{throw new Error('אין חיבור לשרת. ההצבעה לא נשמרה, נסו שוב בעוד רגע.')}const j=await r.json().catch(()=>({error:'שגיאה'}));if(!r.ok)throw new Error(j.error||'שגיאה');return j}
 async function next(){$('nextBtn').disabled=true;try{const t=await api('class',{action:'next'});S.ticket=t.ticket;S.picks=[];sessionStorage[SK+'-t']=t.ticket;render();show('s-vote')}catch(e){$('e0').textContent=e.message;show('s-load')}finally{$('nextBtn').disabled=false}}
 $('nextBtn').onclick=next;
 function render(){
